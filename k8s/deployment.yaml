@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: device-api
+  namespace: default
+  labels:
+    app: device-api
+spec:
+  selector:
+    matchLabels:
+      app: device-api
+  template:
+    metadata:     
+      labels:
+        app: device-api
+    spec:                    
+      tolerations:
+      - effect: NoSchedule
+        key: app
+        operator: Equal
+        value: api
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - device-api
+              topologyKey: "kubernetes.io/hostname"      
+      containers:
+      - name: device-api
+        # port
+        ports:
+        - containerPort: 3000
+          name: app-port        
+        ## add-healthcheck
+        readinessProbe:
+          httpGet:
+            port: 3000
+            path: "/live"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            port: 3000
+            path: "/ready"
+          initialDelaySeconds: 15
+          periodSeconds: 5        
+        # image
+        image: "sigmaeibon/device-api:latest"
+        imagePullPolicy: Always
+        
+        # add-resources
+        resources:
+        # default-resources
+            
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi        
+        envFrom:
+        - configMapRef:
+            name: device-api-configmap
+        - secretRef:
+            name: device-api-secret
